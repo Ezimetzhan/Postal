@@ -49,7 +49,13 @@ extension mailimap_msg_att_body_section {
         // parse headers
         var curToken: size_t = 0
         var fields: UnsafeMutablePointer<mailimf_fields> = nil
-        guard nil == mailimf_envelope_and_optional_fields_parse(sec_body_part, sec_length, &curToken, &fields).toIMFError else { return nil }
+        
+        do {
+            try IMFError.attempt(mailimf_envelope_and_optional_fields_parse(sec_body_part, sec_length, &curToken, &fields))
+        } catch {
+            return nil
+        }
+        
         defer { mailimf_fields_free(fields) }
             
         var singleFields = mailimf_single_fields()

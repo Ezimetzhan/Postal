@@ -253,9 +253,9 @@ extension IMAPSession {
         var resultList: UnsafeMutablePointer<clist> = nil
         
         if capabilities.contains(.LiteralPlus) {
-            try mailimap_uid_search_literalplus(imap, charset, key, &resultList).toIMAPError?.asPostalError.check()
+            try IMAPError.attempt(mailimap_uid_search_literalplus(imap, charset, key, &resultList))
         } else {
-            try mailimap_uid_search(imap, charset, key, &resultList).toIMAPError?.check()
+            try IMAPError.attempt(mailimap_uid_search(imap, charset, key, &resultList))
         }
         defer { mailimap_search_result_free(resultList) }
         

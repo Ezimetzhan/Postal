@@ -29,8 +29,15 @@ protocol PostalErrorType {
     var asPostalError: PostalError { get }
 }
 
-extension PostalErrorType {
-    func check() throws { throw self.asPostalError }
+protocol Int32PostalError: PostalErrorType {
+    init?(errorCode: Int32)
+}
+
+extension Int32PostalError {
+    static func attempt(errorCode: Int32) throws {
+        guard let error = Self(errorCode: errorCode) else { return }
+        throw error.asPostalError
+    }
 }
 
 public enum PostalError: ErrorType {

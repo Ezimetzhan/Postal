@@ -74,7 +74,12 @@ extension mailimap_envelope {
         
         var curToken: Int = 0
         var msgIdList: UnsafeMutablePointer<clist> = nil
-        guard mailimf_msg_id_list_parse(env_in_reply_to, Int(strlen(env_in_reply_to)), &curToken, &msgIdList).toIMFError == nil else { return [] }
+        
+        do {
+            try IMFError.attempt(mailimf_msg_id_list_parse(env_in_reply_to, Int(strlen(env_in_reply_to)), &curToken, &msgIdList))
+        } catch {
+            return []
+        }
         
         defer {
             pointerSequence(msgIdList, of: CChar.self)
@@ -92,7 +97,12 @@ extension mailimap_envelope {
         
         var curToken: Int = 0
         var msgId: UnsafeMutablePointer<CChar> = nil
-        guard mailimf_msg_id_parse(env_message_id, Int(strlen(env_message_id)), &curToken, &msgId).toIMFError == nil else { return nil }
+        
+        do {
+            try IMFError.attempt(mailimf_msg_id_parse(env_message_id, Int(strlen(env_message_id)), &curToken, &msgId))
+        } catch {
+            return nil
+        }
         
         defer { mailimf_msg_id_free(msgId) }
         
@@ -159,17 +169,23 @@ private extension NSDate {
         
         var currentToken: size_t = 0
         var imfDateTime: UnsafeMutablePointer<mailimf_date_time> = nil
-        if mailimf_date_time_parse(envelopeDate, envelopeDate.characters.count, &currentToken, &imfDateTime).toIMFError == nil {
+        
+        do {
+            try IMFError.attempt(mailimf_date_time_parse(envelopeDate, envelopeDate.characters.count, &currentToken, &imfDateTime))
+            
             defer { mailimf_date_time_free(imfDateTime) }
             return imfDateTime.optional?.date
-        }
+        } catch { /* continue */ }
         
         var imapDateTime: UnsafeMutablePointer<mailimap_date_time> = nil
-        if mailimap_hack_date_time_parse(envelopeDate, &imapDateTime, 0, nil).toIMAPError == nil {
+        
+        do {
+            try IMAPError.attempt(mailimap_hack_date_time_parse(envelopeDate, &imapDateTime, 0, nil))
+            
             defer { mailimap_date_time_free(imapDateTime) }
             return imapDateTime.optional?.date
+        } catch {
+            return nil
         }
-        
-        return nil
     }
 }

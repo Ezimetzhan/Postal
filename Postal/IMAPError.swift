@@ -47,19 +47,16 @@ extension IMAPError {
     }
 }
 
-extension Int {
-    var toIMAPError: IMAPError? {
-        switch self {
-        case MAILIMAP_NO_ERROR, MAILIMAP_NO_ERROR_AUTHENTICATED, MAILIMAP_NO_ERROR_NON_AUTHENTICATED: return nil
-        case MAILIMAP_ERROR_STREAM: return .connectionError
-        case MAILIMAP_ERROR_PARSE: return .parseError
-        default: return .undefinedError
-        }
-    }
-}
+// MARK: Error code initialization
 
-extension Int32 {
-    var toIMAPError: IMAPError? {
-        return Int(self).toIMAPError
+extension IMAPError: Int32PostalError {
+    
+    init?(errorCode: Int32) {
+        switch Int(errorCode) {
+        case MAILIMAP_NO_ERROR, MAILIMAP_NO_ERROR_AUTHENTICATED, MAILIMAP_NO_ERROR_NON_AUTHENTICATED: return nil
+        case MAILIMAP_ERROR_STREAM: self = .connectionError
+        case MAILIMAP_ERROR_PARSE: self = .parseError
+        default: self = .undefinedError
+        }
     }
 }

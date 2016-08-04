@@ -99,10 +99,6 @@ func bridgeUnretained<T : AnyObject>(obj : T) -> UnsafeMutablePointer<Void> {
     return UnsafeMutablePointer(Unmanaged.passUnretained(obj).toOpaque())
 }
 
-extension ErrorType {
-    func check() throws { throw self }
-}
-
 extension OptionSetType where Element == Self {
     func representation(flags: [(Self, String)]) -> String {
         var stringFlags: [String] = []

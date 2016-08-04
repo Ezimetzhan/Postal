@@ -84,15 +84,15 @@ final class IMAPSession {
         let voipEnabled = true
         switch configuration.connectionType {
         case .startTLS:
-            try mailimap_socket_connect_voip(imap, configuration.hostname, configuration.port, voipEnabled.int32Value).toIMAPError?.check()
-            try mailimap_socket_starttls(imap).toIMAPError?.check()
+            try IMAPError.attempt(mailimap_socket_connect_voip(imap, configuration.hostname, configuration.port, voipEnabled.int32Value))
+            try IMAPError.attempt(mailimap_socket_starttls(imap))
 
         case .tls:
-            try mailimap_ssl_connect_voip(imap, configuration.hostname, configuration.port, voipEnabled.int32Value).toIMAPError?.check()
+            try IMAPError.attempt(mailimap_ssl_connect_voip(imap, configuration.hostname, configuration.port, voipEnabled.int32Value))
             try checkCertificateIfNeeded()
         
         case .clear:
-            try mailimap_socket_connect_voip(imap, configuration.hostname, configuration.port, voipEnabled.int32Value).toIMAPError?.check()
+            try IMAPError.attempt(mailimap_socket_connect_voip(imap, configuration.hostname, configuration.port, voipEnabled.int32Value))
         }
         
         let low = mailstream_get_low(imap.memory.imap_stream)
@@ -111,7 +111,7 @@ final class IMAPSession {
         if caps == nil { // if capabilities are not found
             // fetch capabilities on imap
             var capabilityData = UnsafeMutablePointer<mailimap_capability_data>(nil)
-            try mailimap_capability(imap, &capabilityData).toIMAPError?.check()
+            try IMAPError.attempt(mailimap_capability(imap, &capabilityData))
             mailimap_capability_data_free(capabilityData)
         }
         
@@ -147,16 +147,28 @@ final class IMAPSession {
     }
     
     func login() throws {
-        let result: Int32
+        let error: IMAPError?
         
         switch configuration.password {
         case .accessToken(let accessToken):
-            result = mailimap_oauth2_authenticate(imap, configuration.login, accessToken)
+            do {
+                try IMAPError.attempt(mailimap_oauth2_authenticate(imap, configuration.login, accessToken))
+                error = nil
+            } catch let e as IMAPError {
+                error = e
+            }
         case .plain(let password):
-            result = mailimap_login(imap, configuration.login, password)
+            do {
+                try IMAPError.attempt(mailimap_login(imap, configuration.login, password))
+                error = nil
+            } catch let e as IMAPError {
+                error = e
+            }
         }
         
-        try result.toIMAPError?.enrich { return .loginError(String.fromCString(imap.memory.imap_response) ?? "") }.check()
+        if let error = error {
+            throw error.enrich { return .loginError(String.fromCString(imap.memory.imap_response) ?? "") }.asPostalError
+        }
         
         try checkCapabilities()
     }
@@ -172,7 +184,7 @@ final class IMAPSession {
         if capabilities.contains(.Namespace) {
             // fetch namespace
             var namespaceData = UnsafeMutablePointer<mailimap_namespace_data>(nil)
-            try mailimap_namespace(imap, &namespaceData).toIMAPError?.check()
+            try IMAPError.attempt(mailimap_namespace(imap, &namespaceData))
             defer { mailimap_namespace_data_free(namespaceData) }
             if let otherList = namespaceData.optional?.ns_personal.optional?.ns_data_list { // have a personal namespace ?
                 let nsItems = sequence(otherList, of: mailimap_namespace_info.self)
@@ -184,7 +196,7 @@ final class IMAPSession {
         if defaultNamespace == nil {
             var list = UnsafeMutablePointer<clist>(nil)
             
-            try mailimap_list(imap, "", "", &list).toIMAPError?.check()
+            try IMAPError.attempt(mailimap_list(imap, "", "", &list))
             defer { mailimap_list_result_free(list) }
             
             let initialFolders = makeFolders(sequence(list, of: mailimap_mailbox_list.self))
@@ -200,9 +212,9 @@ final class IMAPSession {
         var list: UnsafeMutablePointer<clist> = nil;
         if capabilities.contains(.XList) && !capabilities.contains(.Gmail) {
             // XLIST support is deprecated on Gmail. See https://developers.google.com/gmail/imap_extensions#xlist_is_deprecated
-            try mailimap_xlist(imap, prefix, "*", &list).toIMAPError?.check()
+            try IMAPError.attempt(mailimap_xlist(imap, prefix, "*", &list))
         } else {
-            try mailimap_list(imap, prefix, "*", &list).toIMAPError?.check()
+            try IMAPError.attempt(mailimap_list(imap, prefix, "*", &list))
         }
         defer { mailimap_list_result_free(list) }
         
@@ -211,7 +223,7 @@ final class IMAPSession {
     
     func select(folder: String) throws -> IMAPFolderInfo {
         // needs to be optimized by checking current selected folder
-        try mailimap_select(imap, folder).toIMAPError?.check()
+        try IMAPError.attempt(mailimap_select(imap, folder))
         
         guard let info = imap.optional?.imap_selection_info.optional else { throw IMAPError.nonExistantFolderError.asPostalError }
         return IMAPFolderInfo(selectionInfo: info)
@@ -230,7 +242,7 @@ final class IMAPSession {
         guard capabilities.contains(.Id) else { return }
         
         var serverId: UnsafeMutablePointer<mailimap_id_params_list> = nil
-        try mailimap_id(imap, nil, &serverId).toIMAPError?.check()
+        try IMAPError.attempt(mailimap_id(imap, nil, &serverId))
         defer { mailimap_id_params_list_free(serverId) }
         
         guard let list = serverId.optional?.idpa_list else { return }

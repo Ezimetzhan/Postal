@@ -33,17 +33,11 @@ extension IMFError: PostalErrorType {
     var asPostalError: PostalError { return .imfError(self) }
 }
 
-extension Int {
-    var toIMFError: IMFError? {
-        switch self {
+extension IMFError: Int32PostalError {
+    init?(errorCode: Int32) {
+        switch Int(errorCode) {
         case MAILIMF_NO_ERROR: return nil
-        default: return .undefinedError
+        default: self = .undefinedError
         }
-    }
-}
-
-extension Int32 {
-    var toIMFError: IMFError? {
-        return Int(self).toIMFError
     }
 }

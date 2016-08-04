@@ -193,7 +193,7 @@ extension IMAPSession {
             let imapSet = indexSet.unreleasedMailimapSet
             defer { mailimap_set_free(imapSet) }
 
-            try fetchFunc(session: self.imap, set: imapSet, fetch_type: fetchType, result: &results).toIMAPError?.check()
+            try IMAPError.attempt(fetchFunc(session: self.imap, set: imapSet, fetch_type: fetchType, result: &results))
             
             defer { mailimap_fetch_list_free(results) }
         }
@@ -238,7 +238,7 @@ extension IMAPSession {
         
         // fetch
         var results: UnsafeMutablePointer<clist> = nil
-        try mailimap_uid_fetch(imap, imapSet, attList, &results).toIMAPError?.check()
+        try IMAPError.attempt(mailimap_uid_fetch(imap, imapSet, attList, &results))
         defer { mailimap_fetch_list_free(results) }
     }
 }
